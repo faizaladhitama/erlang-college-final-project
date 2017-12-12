@@ -2,11 +2,12 @@
 -module(kitty_services).
 
 -export([start_link/0, order_cat/4, return_cat/2, close_shop/1, 
-        start_deceased_cat_server/0, show_deceased_cat_list/1, register_deceased_cat/5]).
+        start_deceased_cat_server/0, show_deceased_cat_list/1, register_deceased_cat/5, show_count_all_cat_with_sum_price/1, add_cat_with_price/5]).
 -export([init/1, handle_call/3, handle_cast/2, tukar_kucing/4]).
 
 -record(cat, {name, color=black, description}).
 -record(deceased_cat, {name, date, cause}).
+-record(cat_with_price, {name, color=black, description, price=0}).
 
 %%% Client API
 start_link() -> my_server:start_link(?MODULE, []).
@@ -16,10 +17,16 @@ start_deceased_cat_server() -> my_server:start_link(?MODULE, []).
 %% Synchronous call
 order_cat(Pid, Name, Color, Description) ->
     my_server:call(Pid, {order, Name, Color, Description}).
+
+add_cat_with_price(Pid, Name, Color, Description, Price) ->
+    my_server:call(Pid, {add_with_price, Name, Color, Description, Price}).
     
 show_deceased_cat_list(Pid) ->
     my_server:call(Pid, show_deceased).       
-    
+
+show_count_all_cat_with_sum_price(Pid) ->
+    my_server:call(Pid, show_count_all_cat_with_sum_price).  
+	
 %% This call is asynchronous
 return_cat(Pid, Cat = #cat{}) ->
     my_server:cast(Pid, {return, Cat}).
@@ -52,6 +59,22 @@ handle_call({order, Name, Color, Description}, From, Cats) ->
         my_server:reply(From, hd(Cats)),
         tl(Cats)
     end;
+	
+handle_call({add_with_price, Name, Color, Description, Price}, From, Cats) ->
+    
+    my_server:reply(From, {ok, cat_with_price}),
+    Cats ++ [make_cat_with_price(Name, Color, Description, Price)];
+    
+   
+%%%Menampilkan jumlah uang yang harus dibayar untuk membeli semua kucing, beserta jumlah kucingnya
+handle_call(show_count_all_cat_with_sum_price, From, Cats) ->
+    Total = lists:foldl(fun(_, Sum) -> Sum + 1 end, 0, Cats),
+	List_price = [Cat#cat_with_price.price|| Cat <- Cats],
+	Sum = lists:sum(List_price),
+	my_server:reply(From,{Sum,Total}),
+    Cats;
+	
+	
 
 %%%% Server functions untuk layanan tukar kucing
 handle_call({tukar, Name, Color, Description}, From, Cats) ->
@@ -101,6 +124,12 @@ make_cat(Name, Col, Desc) ->
 
 make_deceased_cat(Name, Date, Cause) ->
     #deceased_cat{name=Name, date=Date, cause=Cause}.
+	
+make_cat_with_price(Name, Col, Desc, Price) ->
+    #cat_with_price{name=Name, color=Col, description=Desc, price=Price}.
+	
+
+
     
 terminate(Cats) ->
     [io:format("~p was set free.~n",[C#cat.name]) || C <- Cats],

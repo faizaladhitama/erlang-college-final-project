@@ -3,7 +3,11 @@ Ujian Programming
 Kuliah Pemrograman Fungsional 2017
 ----
 
-Repository ini berisi _code base_ bahan untuk ujian pemrograman kuliah Pemrograman Fungsional.
+Repository ini berisi _code base_ bahan untuk ujian pemrograman kuliah Pemrograman Fungsional. Hanya ada dua berkas utama pada awalnya yaitu:
+* my_server.erl
+* kitten_service2017.erl
+
+Silahkan tambahkan fungsi pada berkas tersebut atau kembangkan berkas lain namun tetap menggunakan kedua berkas tersebut.
 
 Kejujuran dan Etika akademik
 ----
@@ -30,7 +34,7 @@ Aturan Pull Request:
   * Pastikan sudah meng-update repository anda dengan kondisi repository master yang terkini.
   * Pastikan juga sudah melihat dan mempelajari _pull request_ yang sudah dilakukan peserta yang lain untuk menghindari duplikasi fitur.
 * Bila ada duplikasi fitur, request yang belakangan akan otomatis ditolak.
-* Pastikan program anda bisa dijalankan dengan baik dan benar. Jangan melakukan _pull request_ bila masih ada _error_.
+* Pastikan program anda bisa di-_compile_ dan dijalankan dengan baik dan benar. Jangan melakukan _pull request_ bila masih ada _error_.
 
 Kriteria Fitur dan Penilaian:
 ----
@@ -52,8 +56,8 @@ akan dianggap layak sebagai ujian programming bilaa:
 * Rentang nilai maksimal 20 poin akan diberikan berdasarkan tingkat kesulitan pengerjaan, efisiensi, dan penggunaan library atau struktur data yang lebih menarik, termasuk penerapan higher-order function yang efektif.  
 * bonus maksimal 20 poin bisa diberikan bagi peserta yang menggabungkan fitur-fitur sebelumnya dari peserta lain.
 * Nilai 60, bila _pull request_ awalnya ditolak atau perlu revisi :
-  * dengan minor error/correction. Perlu diperbaiki maksimal 3 (dua) hari setelah review atau reject.
-  * dengan major error/correction, atau fitur sudah dikembangkan. Perlu buat pull request baru, maksimal 3 (dua) hari setelah review atau reject. atau 3 hari setelah batas deadline.
+  * dengan minor error/correction. Perlu diperbaiki maksimal 3 (tiga) hari setelah review atau reject.
+  * dengan major error/correction, atau fitur sudah dikembangkan. Perlu buat pull request baru, maksimal 3 (tiga) hari setelah review atau reject. atau 3 hari setelah batas deadline.
   * Kesempatan koreksi hanya akan diberikan satu kali.
 
 *Contoh-contoh lain Fitur/Fungsi*:
@@ -66,6 +70,7 @@ akan dianggap layak sebagai ujian programming bilaa:
 * Tambah Tanggal kelahiran
 * Menghitung umur kucing
 * Mendaftarkan kucing yang warna-nya sama.
+* atau pola fungsi-fungsi yang ada tapi untuk binatang lain namun **dengan variasi yang _significant_** bukan hanya me-rename fungsi.
 
 dan lain-lain, silahkan kembangkan kreativitas dan inovasi!
 

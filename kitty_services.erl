@@ -157,7 +157,7 @@ search_cat_h([{with, description, Query}|T], Cats, Results) ->
 	if Results =:= [] -> search_cat_h(T, Cats, [C || C <- Cats, C#cat.description =:= Query]);
 	   Results =/= [] -> search_cat_h(T, Cats, [C || C <- Results, C#cat.description =:= Query]) end;
 search_cat_h([{without, description, Query}|T], Cats, Results) ->
-	if Results =:= [] -> search_cat_h(T, Cats, [C || C <- Cats, C#cat.description =:= Query]);
+	if Results =:= [] -> search_cat_h(T, Cats, [C || C <- Cats, C#cat.description =/= Query]);
 	   Results =/= [] -> search_cat_h(T, Cats, [C || C <- Results, C#cat.description =/= Query]) end;
 
 search_cat_h(_, _, _) -> [error].

@@ -60,8 +60,14 @@ cari_kucing(Pid, Query) ->
 init([]) -> []. %% no treatment of info here!
 
 handle_call({order, Name, Color, Description}, From, Cats) ->
-    my_server:reply(From, make_cat(Name, Color, Description)),
-        Cats;
+	Hasil = search_cat_h([{with,name,Name},{with,color,Color},{with,description,Description}], Cats, []),
+	if Hasil =:= [] ->
+		my_server:reply(From, make_cat(Name, Color, Description)),
+		Cats;
+	   Hasil =/= [] ->
+	    my_server:reply(From, hd(Hasil)),
+		[C || C <- Cats, C =/= hd(Hasil)]
+	end;
 	% This line of code does not do what it needs to do, consider deleting
 	% if Cats =:= [] ->
     %     my_server:reply(From, make_cat(Name, Color, Description)),

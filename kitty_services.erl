@@ -30,7 +30,6 @@ show_feed_queue(Pid) -> my_server:call(Pid, show_feed_queue).
 
 make_cat_hungry(Cat = #cat{}) ->
     #cat{name=Cat#cat.name, color=Cat#cat.color, description=Cat#cat.description, hungry=true}.
-
     
 %% This call is asynchronous
 return_cat(Pid, Cat = #cat{}) ->
@@ -46,8 +45,13 @@ register_deceased_cat(Pid1, Pid2, Name, Date = {DD, MM, YY}, Cause) ->
     end.
 
 register_cat_to_feed_queue(Pid, Cat = #cat{}) ->
-    my_server:cast(Pid, {add_feed_queue, Cat}),
-    my_server:call(Pid, {add_feed_queue, Cat}).
+    case Cat#cat.hungry of
+        true ->
+            my_server:cast(Pid, {add_feed_queue, Cat}),
+            my_server:call(Pid, {add_feed_queue, Cat});
+        false ->
+            my_server:call(Pid, {cat_not_hungry, Cat})
+    end.
     
 %% Synchronous call
 close_shop(Pid) ->
@@ -105,12 +109,18 @@ handle_call({decease, Name, Date, Cause}, From, DeceasedCats) ->
             DeceasedCats
     end;
 
+
+
 handle_call({add_feed_queue, Cat = #cat{}}, From, Queue) ->
-    my_server:reply(From, {ok, "Add '" ++ Cat#cat.name ++ " the Cat' to feed queue. Queue number: " ++ length(Queue)}),
+    my_server:reply(From, {ok, add_feed_queue, Cat#cat.name, queue_length, length(Queue)}),
     Queue;
 
 handle_call(show_feed_queue, From, Queue) ->
-    my_server:reply(From, {[Cat#cat.name || Cat <- Queue]}),
+    my_server:reply(From, {[{Cat#cat.name, Cat#cat.color, Cat#cat.description, Cat#cat.hungry} || Cat <- Queue]}),
+    Queue;
+
+handle_call({cat_not_hungry, Cat = #cat{}}, From, Queue) ->
+    my_server:reply(From, {error, cat_not_hungry, {Cat#cat.name, Cat#cat.color, Cat#cat.description, Cat#cat.hungry}}),
     Queue.
 
 handle_cast({return, Cat = #cat{}}, Cats) ->

@@ -6,7 +6,7 @@
         return_cat/2, 
         close_shop/1, 
         start_deceased_cat_server/0, show_deceased_cat_list/1, register_deceased_cat/5,
-        start_feed_server/0, show_feed_queue/1, register_cat_to_feed_queue/2, make_cat_hungry/1
+        start_feed_server/0, show_feed_queue/1, register_cat_to_feed_queue/2, make_cat_hungry/1, feed_the_queue/1
         ]).
 
 -export([init/1, handle_call/3, handle_cast/2, tukar_kucing/4]).
@@ -28,8 +28,9 @@ show_deceased_cat_list(Pid) -> my_server:call(Pid, show_deceased).
 
 show_feed_queue(Pid) -> my_server:call(Pid, show_feed_queue).
 
-make_cat_hungry(Cat = #cat{}) ->
-    #cat{name=Cat#cat.name, color=Cat#cat.color, description=Cat#cat.description, hungry=true}.
+make_cat_hungry(Cat = #cat{}) -> #cat{name=Cat#cat.name, color=Cat#cat.color, description=Cat#cat.description, hungry=true}.
+
+feed_the_queue(Pid) -> my_server:call(Pid, feed_queue).
     
 %% This call is asynchronous
 return_cat(Pid, Cat = #cat{}) ->
@@ -112,7 +113,7 @@ handle_call({decease, Name, Date, Cause}, From, DeceasedCats) ->
 
 
 handle_call({add_feed_queue, Cat = #cat{}}, From, Queue) ->
-    my_server:reply(From, {ok, add_feed_queue, Cat#cat.name, queue_length, length(Queue)}),
+    my_server:reply(From, {ok, add_feed_queue, {Cat#cat.name, Cat#cat.color, Cat#cat.description, Cat#cat.hungry}, queue_length, length(Queue)}),
     Queue;
 
 handle_call(show_feed_queue, From, Queue) ->
@@ -121,13 +122,19 @@ handle_call(show_feed_queue, From, Queue) ->
 
 handle_call({cat_not_hungry, Cat = #cat{}}, From, Queue) ->
     my_server:reply(From, {error, cat_not_hungry, {Cat#cat.name, Cat#cat.color, Cat#cat.description, Cat#cat.hungry}}),
+    Queue;
+
+handle_call(feed_queue, From, []) ->
+    my_server:reply(From, {error, empty_feed_queue, all_cat_is_happy}),
+    [];
+
+handle_call(feed_queue, From, [Cat|Queue]) ->    
+    my_server:reply(From, {ok, finish_eat, {Cat#cat.name, Cat#cat.color, Cat#cat.description, Cat#cat.hungry}, happy_cat}),
     Queue.
 
-handle_cast({return, Cat = #cat{}}, Cats) ->
-    [Cat|Cats];
+handle_cast({return, Cat = #cat{}}, Cats) -> [Cat|Cats];
 
-handle_cast({decease, Name}, Cats) ->
-    lists:filter(fun(Cat) -> Cat#cat.name =/= Name end, Cats);
+handle_cast({decease, Name}, Cats) -> lists:filter(fun(Cat) -> Cat#cat.name =/= Name end, Cats);
 
 handle_cast({add_feed_queue, Cat = #cat{}}, Queue) -> Queue ++ [Cat].
         

@@ -1,11 +1,17 @@
 %%%%% Abstracted version
 -module(kitty_services).
 
--export([start_link/0, order_cat/4, return_cat/2, close_shop/1, 
-        start_deceased_cat_server/0, show_deceased_cat_list/1, register_deceased_cat/5]).
+-export([start_link/0, 
+        order_cat/4, 
+        return_cat/2, 
+        close_shop/1, 
+        start_deceased_cat_server/0, show_deceased_cat_list/1, register_deceased_cat/5,
+        start_feed_server/0, show_feed_queue/1, register_cat_to_feed_queue/2, make_cat_hungry/1
+        ]).
+
 -export([init/1, handle_call/3, handle_cast/2, tukar_kucing/4]).
 
--record(cat, {name, color=black, description}).
+-record(cat, {name, color=black, description, hungry=false}).
 -record(deceased_cat, {name, date, cause}).
 
 %%% Client API
@@ -13,12 +19,18 @@ start_link() -> my_server:start_link(?MODULE, []).
 
 start_deceased_cat_server() -> my_server:start_link(?MODULE, []).
 
+start_feed_server() -> my_server:start_link(?MODULE, []).
+
 %% Synchronous call
-order_cat(Pid, Name, Color, Description) ->
-    my_server:call(Pid, {order, Name, Color, Description}).
+order_cat(Pid, Name, Color, Description) -> my_server:call(Pid, {order, Name, Color, Description}).
     
-show_deceased_cat_list(Pid) ->
-    my_server:call(Pid, show_deceased).       
+show_deceased_cat_list(Pid) -> my_server:call(Pid, show_deceased).
+
+show_feed_queue(Pid) -> my_server:call(Pid, show_feed_queue).
+
+make_cat_hungry(Cat = #cat{}) ->
+    #cat{name=Cat#cat.name, color=Cat#cat.color, description=Cat#cat.description, hungry=true}.
+
     
 %% This call is asynchronous
 return_cat(Pid, Cat = #cat{}) ->
@@ -32,6 +44,10 @@ register_deceased_cat(Pid1, Pid2, Name, Date = {DD, MM, YY}, Cause) ->
         false ->
             my_server:call(Pid1, invalid_date)
     end.
+
+register_cat_to_feed_queue(Pid, Cat = #cat{}) ->
+    my_server:cast(Pid, {add_feed_queue, Cat}),
+    my_server:call(Pid, {add_feed_queue, Cat}).
     
 %% Synchronous call
 close_shop(Pid) ->
@@ -87,13 +103,23 @@ handle_call({decease, Name, Date, Cause}, From, DeceasedCats) ->
         _ ->
             my_server:reply(From, {error, "can't die more than once"}),
             DeceasedCats
-    end.
+    end;
+
+handle_call({add_feed_queue, Cat = #cat{}}, From, Queue) ->
+    my_server:reply(From, {ok, "Add '" ++ Cat#cat.name ++ " the Cat' to feed queue. Queue number: " ++ length(Queue)}),
+    Queue;
+
+handle_call(show_feed_queue, From, Queue) ->
+    my_server:reply(From, {[Cat#cat.name || Cat <- Queue]}),
+    Queue.
 
 handle_cast({return, Cat = #cat{}}, Cats) ->
     [Cat|Cats];
 
 handle_cast({decease, Name}, Cats) ->
-    lists:filter(fun(Cat) -> Cat#cat.name =/= Name end, Cats).
+    lists:filter(fun(Cat) -> Cat#cat.name =/= Name end, Cats);
+
+handle_cast({add_feed_queue, Cat = #cat{}}, Queue) -> Queue ++ [Cat].
         
 %%% Private functions
 make_cat(Name, Col, Desc) ->

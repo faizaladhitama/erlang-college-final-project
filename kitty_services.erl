@@ -2,7 +2,8 @@
 -module(kitty_services).
 
 -export([start_link/0, order_cat/4, return_cat/2, close_shop/1, 
-        start_deceased_cat_server/0, show_deceased_cat_list/1, register_deceased_cat/5]).
+        start_deceased_cat_server/0, show_deceased_cat_list/1, register_deceased_cat/5,
+        tambah_kucing_warna/4, lihat_warna_kucing/1, show_cat/1]).
 -export([init/1, handle_call/3, handle_cast/2, tukar_kucing/4]).
 
 -record(cat, {name, color=black, description}).
@@ -16,7 +17,10 @@ start_deceased_cat_server() -> my_server:start_link(?MODULE, []).
 %% Synchronous call
 order_cat(Pid, Name, Color, Description) ->
     my_server:call(Pid, {order, Name, Color, Description}).
-    
+
+show_cat(Pid) ->
+    my_server:call(Pid, show).
+
 show_deceased_cat_list(Pid) ->
     my_server:call(Pid, show_deceased).       
     
@@ -32,7 +36,7 @@ register_deceased_cat(Pid1, Pid2, Name, Date = {DD, MM, YY}, Cause) ->
         false ->
             my_server:call(Pid1, invalid_date)
     end.
-    
+
 %% Synchronous call
 close_shop(Pid) ->
     my_server:call(Pid, terminate).
@@ -40,6 +44,14 @@ close_shop(Pid) ->
 %% Synchronous call untuk fungsi tukar_kucing
 tukar_kucing(Pid, Name, Color, Description) ->
     my_server:call(Pid, {tukar, Name, Color, Description}).
+
+%% Synchronous call untuk menambahkan kucing yang warnanya sama
+tambah_kucing_warna(Pid, Name, Color, Description) ->
+    my_server:call(Pid, {color_register, Name, Color, Description}).
+
+%% Synchronous call untuk menampilkan seluruh kucing yang ada di server
+lihat_warna_kucing(Pid) ->
+    my_server:call(Pid, colors).
 
 %%% Server functions
 init([]) -> []. %% no treatment of info here!
@@ -87,6 +99,36 @@ handle_call({decease, Name, Date, Cause}, From, DeceasedCats) ->
         _ ->
             my_server:reply(From, {error, "can't die more than once"}),
             DeceasedCats
+    end;
+
+handle_call(show, From, Cats) ->
+    my_server:reply(From, {ok, Cats}),
+    Cats;
+
+handle_call(colors, From, Cats) ->
+    if Cats =:= [] ->
+        my_server:reply(From, {error, "No cats found"}),
+        Cats;
+       Cats =/= [] ->
+        Colors = lists:map(fun(Cat) -> Cat#cat.color end, Cats),
+        my_server:reply(From, {ok, Colors}),
+        Cats
+    end;
+
+handle_call({color_register, Name, Color, Description}, From, Cats) ->
+    if  Cats =:= [] ->
+            my_server:reply(From, make_cat(Name, Color, Description)),
+            Cats;
+        Cats =/= [] ->
+            AllColor = [Cat#cat.color || Cat <- Cats],
+            case lists:member(Color, AllColor) of
+                true ->
+                    my_server:reply(From, {ok, "added cat with the same color"}),
+                    Cats ++ [make_cat(Name, Color, Description)];
+                false ->
+                    my_server:reply(From, {error, "Please add cat with available colors:", AllColor}),
+                    Cats
+            end
     end.
 
 handle_cast({return, Cat = #cat{}}, Cats) ->
@@ -94,7 +136,7 @@ handle_cast({return, Cat = #cat{}}, Cats) ->
 
 handle_cast({decease, Name}, Cats) ->
     lists:filter(fun(Cat) -> Cat#cat.name =/= Name end, Cats).
-        
+
 %%% Private functions
 make_cat(Name, Col, Desc) ->
     #cat{name=Name, color=Col, description=Desc}.

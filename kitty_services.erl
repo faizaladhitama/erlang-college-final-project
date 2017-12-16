@@ -18,9 +18,6 @@ start_deceased_cat_server() -> my_server:start_link(?MODULE, []).
 order_cat(Pid, Name, Color, Description) ->
     my_server:call(Pid, {order, Name, Color, Description}).
 
-show_cat(Pid) ->
-    my_server:call(Pid, show).
-
 show_deceased_cat_list(Pid) ->
     my_server:call(Pid, show_deceased).       
     
@@ -49,7 +46,12 @@ tukar_kucing(Pid, Name, Color, Description) ->
 tambah_kucing_warna(Pid, Name, Color, Description) ->
     my_server:call(Pid, {color_register, Name, Color, Description}).
 
+
 %% Synchronous call untuk menampilkan seluruh kucing yang ada di server
+show_cat(Pid) ->
+    my_server:call(Pid, show).
+
+%% Synchronous call untuk menampilkan seluruh warna yang ada di server
 lihat_warna_kucing(Pid) ->
     my_server:call(Pid, colors).
 
@@ -102,7 +104,7 @@ handle_call({decease, Name, Date, Cause}, From, DeceasedCats) ->
     end;
 
 handle_call(show, From, Cats) ->
-    my_server:reply(From, {ok, Cats}),
+    my_server:reply(From, {ok, [{Cat#cat.name, Cat#cat.color} || Cat <- Cats]}),
     Cats;
 
 handle_call(colors, From, Cats) ->

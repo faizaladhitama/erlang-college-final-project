@@ -3,7 +3,7 @@
 
 -export([start_link/0, order_cat/4, return_cat/2, close_shop/1, 
         start_deceased_cat_server/0, show_deceased_cat_list/1, register_deceased_cat/5]).
--export([init/1, handle_call/3, handle_cast/2, tukar_kucing/4]).
+-export([init/1, handle_call/3, handle_cast/2, tukar_kucing/4, show_cleaning_service_price/1, cat_cleaning_service/3]).
 
 -record(cat, {name, color=black, description}).
 -record(deceased_cat, {name, date, cause}).
@@ -40,6 +40,12 @@ close_shop(Pid) ->
 %% Synchronous call untuk fungsi tukar_kucing
 tukar_kucing(Pid, Name, Color, Description) ->
     my_server:call(Pid, {tukar, Name, Color, Description}).
+
+show_cleaning_service_price(Pid) ->
+	my_server:call(Pid, show_cleaning_price).  
+
+cat_cleaning_service(Pid, Cat = #cat{}, Money) ->
+	my_server:call(Pid, {cleaning, Cat, Money}).
 
 %%% Server functions
 init([]) -> []. %% no treatment of info here!
@@ -87,7 +93,27 @@ handle_call({decease, Name, Date, Cause}, From, DeceasedCats) ->
         _ ->
             my_server:reply(From, {error, "can't die more than once"}),
             DeceasedCats
-    end.
+    end;
+
+handle_call({cleaning, Cat = #cat{}, Money}, From, Cats) ->
+	Cost = (length(Cats) * 5000) + 20000,
+	if 
+		Cost > Money ->
+			my_server:reply(From, {error, "Uang anda tidak cukup untuk pelayanan pembersihan kucing."}),
+			Cats;
+		true ->
+			Change = Money - Cost,
+			Name = Cat#cat.name,
+			Message = lists:concat([Name, " bersih kembali, kembalian anda ", Change]),
+			my_server:reply(From, {ok, Message}),
+			Cats
+	end;
+
+handle_call(show_cleaning_price, From, Cats) ->
+	Cost = (length(Cats) * 5000) + 20000,
+	Message = lists:concat(["Harga jasa pembersihan kucing saat ini adalah ", Cost]),
+	my_server:reply(From, {Message}),
+    Cats.
 
 handle_cast({return, Cat = #cat{}}, Cats) ->
     [Cat|Cats];

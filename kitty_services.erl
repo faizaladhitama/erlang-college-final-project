@@ -4,7 +4,7 @@
 -export([start_link/0, order_cat/4, return_cat/2, close_shop/1, 
         start_deceased_cat_server/0, show_deceased_cat_list/1, register_deceased_cat/5,
         tambah_kucing_warna/4, lihat_warna_kucing/1, show_cat/1]).
--export([init/1, handle_call/3, handle_cast/2, tukar_kucing/4]).
+-export([init/1, handle_call/3, handle_cast/2, tukar_kucing/4, remove_duplicates/1]).
 
 -record(cat, {name, color=black, description}).
 -record(deceased_cat, {name, date, cause}).
@@ -57,6 +57,16 @@ lihat_warna_kucing(Pid) ->
 
 %%% Server functions
 init([]) -> []. %% no treatment of info here!
+
+remove_duplicates(List) ->
+    lists:foldl(fun(Color, Set) ->
+            Length = length(lists:filter(fun(Other) -> Other =:= Color end, Set)),
+            case Length of
+                0 -> Set ++ [Color];
+                _ -> Set
+            end
+        end,
+    [hd(List)], [hd(List) | tl(List)]).
 
 handle_call({order, Name, Color, Description}, From, Cats) ->
     if Cats =:= [] ->
@@ -113,16 +123,16 @@ handle_call(colors, From, Cats) ->
         Cats;
        Cats =/= [] ->
         Colors = lists:map(fun(Cat) -> Cat#cat.color end, Cats),
-        my_server:reply(From, {ok, Colors}),
+        my_server:reply(From, {ok, remove_duplicates(Colors)}),
         Cats
     end;
 
 handle_call({color_register, Name, Color, Description}, From, Cats) ->
     if  Cats =:= [] ->
-            my_server:reply(From, make_cat(Name, Color, Description)),
-            Cats;
+            my_server:reply(From, {ok, "added cat"}),
+            Cats ++ [make_cat(Name, Color, Description)];
         Cats =/= [] ->
-            AllColor = [Cat#cat.color || Cat <- Cats],
+            AllColor = remove_duplicates([Cat#cat.color || Cat <- Cats]),
             case lists:member(Color, AllColor) of
                 true ->
                     my_server:reply(From, {ok, "added cat with the same color"}),

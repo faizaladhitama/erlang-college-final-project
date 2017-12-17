@@ -7,6 +7,7 @@
          show_count_all_cat_with_sum_price/1, add_cat_with_price/5]).
 -export([init/1, handle_call/3, handle_cast/2, tukar_kucing/4]).
 -export([cari_kucing/2, search_cat_h/3]).
+-export([change_working_hour/3]).
 
 -record(cat, {name, color=black, description, job=unemployed}).
 -record(deceased_cat, {name, date, cause}).
@@ -42,6 +43,9 @@ register_deceased_cat(Pid1, Pid2, Name, Date = {DD, MM, YY}, Cause) ->
         false ->
             my_server:call(Pid1, invalid_date)
     end.
+
+change_working_hour(Pid, Start, End) ->
+	my_server:change_working_hour(Pid, Start, End).    
 
 %% Synchronous call
 close_shop(Pid) ->

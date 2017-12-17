@@ -1,14 +1,19 @@
 -module(my_server).
 -export([start/2, start_link/2, call/2, cast/2, reply/2]).
--export([make_hour/2, make_hour/0]).
+-export([make_hour/2, make_hour/0, change_working_hour/3]).
 
 -record(work, {starth, endh}).
 
 make_hour() ->
 	make_hour(9, 17).
 
-make_hour(Start, End) -> 
-	#work{starth=Start, endh=End}.
+make_hour(Start, End) ->
+	if End < Start 	->
+		erlang:error("End is Earier than Start")
+	;	true		->
+		#work{	starth=erlang:max(Start,0), 
+				endh=erlang:min(End, 24)}
+	end.
 
 %%% Public API
 start(Module, InitialState) ->
@@ -37,6 +42,9 @@ cast(Pid, Msg) ->
 reply({Pid, Ref}, Reply) ->
     Pid ! {Ref, Reply}.
 
+change_working_hour(Pid, Start, End) ->
+	Pid ! {work_hour, make_hour(Start, End)}.
+
 %%% Private stuff
 init(Module, InitialState) ->
     loop(Module, Module:init(InitialState), make_hour()).
@@ -60,7 +68,10 @@ loop(Module, State, Work_Hour) ->
         		false	->
 					reply({Pid, Ref}, not_work_hour(Work_Hour)),
             		loop(Module, State, Work_Hour)
-            end
+            end;
+
+        {work_hour, New_Work_Hour} ->
+        	loop(Module, State, New_Work_Hour)
     end.
 
 is_work_hour(Work_Hour) ->

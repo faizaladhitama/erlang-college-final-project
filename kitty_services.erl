@@ -44,6 +44,7 @@ register_deceased_cat(Pid1, Pid2, Name, Date = {DD, MM, YY}, Cause) ->
             my_server:call(Pid1, invalid_date)
     end.
 
+%% Call to change server's working hour
 change_working_hour(Pid, Start, End) ->
 	my_server:change_working_hour(Pid, Start, End).    
 

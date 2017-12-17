@@ -2,7 +2,8 @@
 -module(kitty_services).
 
 -export([start_link/0, order_cat/4, return_cat/2, close_shop/1, 
-        start_deceased_cat_server/0, show_deceased_cat_list/1, register_deceased_cat/5]).
+        start_deceased_cat_server/0, show_deceased_cat_list/1, register_deceased_cat/5,
+        edit_description_cat/3, edit_description_cat/4, show_cat/1, is_edit_by_color/3]).
 -export([init/1, handle_call/3, handle_cast/2, tukar_kucing/4]).
 
 -record(cat, {name, color=black, description}).
@@ -18,8 +19,17 @@ order_cat(Pid, Name, Color, Description) ->
     my_server:call(Pid, {order, Name, Color, Description}).
     
 show_deceased_cat_list(Pid) ->
-    my_server:call(Pid, show_deceased).       
-    
+    my_server:call(Pid, show_deceased).
+
+edit_description_cat(Pid, Name, NewDescription) ->
+    my_server:call(Pid, {edit_description, Name, undefined, NewDescription}).
+
+edit_description_cat(Pid, Name, Color, NewDescription) ->
+    my_server:call(Pid, {edit_description, Name, Color, NewDescription}).       
+
+show_cat(Pid) ->
+    my_server:call(Pid, show).
+
 %% This call is asynchronous
 return_cat(Pid, Cat = #cat{}) ->
     my_server:cast(Pid, {return, Cat}).
@@ -31,6 +41,13 @@ register_deceased_cat(Pid1, Pid2, Name, Date = {DD, MM, YY}, Cause) ->
             my_server:call(Pid2, {decease, Name, Date, Cause});
         false ->
             my_server:call(Pid1, invalid_date)
+    end.
+
+is_edit_by_color(Name, Color, Cats) ->
+    if Color =:= undefined ->
+        lists:filter(fun(Cat) -> Cat#cat.name =:= Name end, Cats);
+    true ->
+        lists:filter(fun(Cat) -> ((Cat#cat.name =:= Name) and (Cat#cat.color =:= Color)) end, Cats)
     end.
     
 %% Synchronous call
@@ -87,14 +104,33 @@ handle_call({decease, Name, Date, Cause}, From, DeceasedCats) ->
         _ ->
             my_server:reply(From, {error, "can't die more than once"}),
             DeceasedCats
-    end.
+    end;
+
+handle_call({edit_description, Name, Color, NewDescription}, From, Cats) ->
+    case is_edit_by_color(Name, Color, Cats) of
+        [] ->
+            my_server:reply(From, {error, "can't find any cat"}),
+            Cats;
+        [_]  ->
+            Get_Cat = hd(is_edit_by_color(Name, Color, Cats)),
+            EditedCat = Get_Cat#cat{description = NewDescription},
+            my_server:reply(From, {ok, "description updated"}),
+            [EditedCat| lists:delete(Get_Cat, Cats)];
+        _   ->
+            my_server:reply(From, {error, "more than 1 cat detected, please specify the name and color"}),
+            Cats
+    end;
+
+handle_call(show, From, Cats) ->
+    my_server:reply(From, {Cats}),
+    Cats.
 
 handle_cast({return, Cat = #cat{}}, Cats) ->
     [Cat|Cats];
 
 handle_cast({decease, Name}, Cats) ->
     lists:filter(fun(Cat) -> Cat#cat.name =/= Name end, Cats).
-        
+
 %%% Private functions
 make_cat(Name, Col, Desc) ->
     #cat{name=Name, color=Col, description=Desc}.

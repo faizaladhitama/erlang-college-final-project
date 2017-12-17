@@ -10,6 +10,8 @@
 -export([init/1, handle_call/3, handle_cast/2, tukar_kucing/4]).
 -export([cari_kucing/2, search_cat_h/3]).
 -export([show_cleaning_service_price/1, cat_cleaning_service/3]).
+-export([change_working_hour/3]).
+
 
 -export([tambah_kucing_warna/4, lihat_warna_kucing/1, show_cat/1, remove_duplicates/1]).
 
@@ -66,6 +68,9 @@ register_cat_to_feed_queue(Pid, Cat = #cat{}) ->
         false ->
             my_server:call(Pid, {cat_not_hungry, Cat})
     end.
+
+change_working_hour(Pid, Start, End) ->
+	my_server:change_working_hour(Pid, Start, End).    
 
 %% Synchronous call
 close_shop(Pid) ->

@@ -4,16 +4,6 @@
 
 -record(work, {starth, endh}).
 
-make_hour() ->
-	make_hour(9, 17).
-
-make_hour(Start, End) ->
-	if End < Start 	->
-		erlang:error("End is Earier than Start")
-	;	true		->
-		#work{	starth=erlang:max(Start,0), 
-				endh=erlang:min(End, 24)}
-	end.
 
 %%% Public API
 start(Module, InitialState) ->
@@ -74,13 +64,26 @@ loop(Module, State, Work_Hour) ->
         	loop(Module, State, New_Work_Hour)
     end.
 
+%% Checking whether current time is working hour
 is_work_hour(Work_Hour) ->
 	{{_,_,_},{Hour,_,_}} = erlang:localtime(),
 	Not_early = (Hour >= Work_Hour#work.starth),
 	Not_late = Hour < Work_Hour#work.endh,
 	Not_early and Not_late.
 
+%% Message output when it's not working hour
 not_work_hour(Work_Hour) ->
 	io:format("Petugas sedang beristirahat, coba datang lagi pada jam kerja.~nJam kerja: ~p s/d ~p~n",
 		[Work_Hour#work.starth, Work_Hour#work.endh]),
 	ok.
+
+make_hour() ->
+	make_hour(9, 17).
+
+make_hour(Start, End) ->
+	if End < Start 	->
+		erlang:error("End is Earier than Start")
+	;	true		->
+		#work{	starth=erlang:max(Start,0), 
+				endh=erlang:min(End, 24)}
+	end.

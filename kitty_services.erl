@@ -69,6 +69,7 @@ register_cat_to_feed_queue(Pid, Cat = #cat{}) ->
             my_server:call(Pid, {cat_not_hungry, Cat})
     end.
 
+%% Call to change server's working hour
 change_working_hour(Pid, Start, End) ->
 	my_server:change_working_hour(Pid, Start, End).    
 

@@ -10,6 +10,7 @@
 -export([add_cat_with_price_and_age/6,
          show_statistic_of_all_cat_age/1,
          show_statistic_of_all_cat_price/1]).
+-export([edit_description_cat/3, edit_description_cat/4, is_edit_by_color/3]).
 -export([init/1, handle_call/3, handle_cast/2, tukar_kucing/4]).
 -export([cari_kucing/2, search_cat_h/3]).
 -export([show_cleaning_service_price/1, cat_cleaning_service/3]).
@@ -59,6 +60,12 @@ show_statistic_of_all_cat_price(Pid) ->
 show_statistic_of_all_cat_age(Pid) ->
     my_server:call(Pid, {show_statistic_of_all_cat_age}).
 
+edit_description_cat(Pid, Name, NewDescription) ->
+    my_server:call(Pid, {edit_description, Name, undefined, NewDescription}).
+
+edit_description_cat(Pid, Name, Color, NewDescription) ->
+    my_server:call(Pid, {edit_description, Name, Color, NewDescription}).
+
 
 %% This call is asynchronous
 return_cat(Pid, Cat = #cat{}) ->
@@ -88,6 +95,13 @@ change_working_hour(Pid, Start, End) when is_integer(Start), is_integer(End)->
             erlang:error("Start begins before End");
 	     End > Start     ->
             my_server:change_working_hour(Pid, Start, End)
+    end.
+
+is_edit_by_color(Name, Color, Cats) ->
+    if Color =:= undefined ->
+        lists:filter(fun(Cat) -> Cat#cat.name =:= Name end, Cats);
+    true ->
+        lists:filter(fun(Cat) -> ((Cat#cat.name =:= Name) and (Cat#cat.color =:= Color)) end, Cats)
     end.
 
 %% Synchronous call
@@ -164,11 +178,11 @@ remove_duplicates(List) ->
 handle_call({order, Name, Color, Description}, From, Cats) ->
 	Hasil = search_cat_h([{with,name,Name},{with,color,Color},{with,description,Description}], Cats, []),
 	if Hasil =:= [] ->
-		my_server:reply(From, make_cat(Name, Color, Description)),
-		Cats;
+		    my_server:reply(From, make_cat(Name, Color, Description)),
+		    Cats;
 	   Hasil =/= [] ->
-	    my_server:reply(From, hd(Hasil)),
-		[C || C <- Cats, C =/= hd(Hasil)]
+	      my_server:reply(From, hd(Hasil)),
+		    [C || C <- Cats, C =/= hd(Hasil)]
 	end;
 	% This line of code does not do what it needs to do, consider deleting
 	% if Cats =:= [] ->
@@ -291,6 +305,21 @@ handle_call(browse, From, Cats) ->
 handle_call({add_cat, Name, Color, Description}, From, Cats) ->
     my_server:reply(From, {ok, add_cat}),
     Cats ++ [make_cat(Name, Color, Description)];
+handle_call({edit_description, Name, Color, NewDescription}, From, Cats) ->
+    case is_edit_by_color(Name, Color, Cats) of
+        [] ->
+            my_server:reply(From, {error, "can't find any cat"}),
+            Cats;
+        [_]  ->
+            Get_Cat = hd(is_edit_by_color(Name, Color, Cats)),
+            EditedCat = Get_Cat#cat{description = NewDescription},
+            my_server:reply(From, {ok, "description updated"}),
+            [EditedCat| lists:delete(Get_Cat, Cats)];
+        _   ->
+            my_server:reply(From, {error, "more than 1 cat detected, please specify the name and color"}),
+            Cats
+    end;
+
 
 handle_call({cleaning, Cat = #cat{}, Money}, From, Cats) ->
   	Cost = (length(Cats) * 5000) + 20000,
@@ -345,7 +374,7 @@ handle_call({show_statistic_of_all_cat_price}, From, Cats) ->
     Cats;
 
 handle_call(show, From, Cats) ->
-    my_server:reply(From, {ok, [{Cat#cat.name, Cat#cat.color} || Cat <- Cats]}),
+    my_server:reply(From, {Cats}),
     Cats;
 
 handle_call(colors, From, Cats) ->

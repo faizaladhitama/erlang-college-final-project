@@ -45,9 +45,13 @@ register_deceased_cat(Pid1, Pid2, Name, Date = {DD, MM, YY}, Cause) ->
     end.
 
 %% Call to change server's working hour
-change_working_hour(Pid, Start, End) ->
-	my_server:change_working_hour(Pid, Start, End).    
-
+change_working_hour(Pid, Start, End) when is_integer(Start), is_integer(End)->
+    if End =< Start    ->
+            erlang:error("Start begins before End")
+	;  End > Start     ->
+            my_server:change_working_hour(Pid, Start, End)
+    end.
+    
 %% Synchronous call
 close_shop(Pid) ->
     my_server:call(Pid, terminate).

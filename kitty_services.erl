@@ -11,6 +11,9 @@
 -export([cari_kucing/2, search_cat_h/3]).
 -export([show_cleaning_service_price/1, cat_cleaning_service/3]).
 
+-export([tambah_kucing_warna/4, lihat_warna_kucing/1, show_cat/1, remove_duplicates/1]).
+
+
 -record(cat, {name, color=black, description, hungry=false, job=unemployed}).
 -record(deceased_cat, {name, date, cause}).
 -record(cat_with_price, {name, color=black, description, price=0}).
@@ -26,6 +29,7 @@ start_feed_server() -> my_server:start_link(?MODULE, []).
 order_cat(Pid, Name, Color, Description) ->
     my_server:call(Pid, {order, Name, Color, Description}).
 
+
 add_cat_with_price(Pid, Name, Color, Description, Price) ->
     my_server:call(Pid, {add_with_price, Name, Color, Description, Price}).
 
@@ -39,6 +43,7 @@ show_feed_queue(Pid) -> my_server:call(Pid, show_feed_queue).
 make_cat_hungry(Cat = #cat{}) -> #cat{name=Cat#cat.name, color=Cat#cat.color, description=Cat#cat.description, hungry=true}.
 
 feed_the_queue(Pid) -> my_server:call(Pid, feed_queue).
+
 
 %% This call is asynchronous
 return_cat(Pid, Cat = #cat{}) ->
@@ -107,8 +112,31 @@ show_cleaning_service_price(Pid) ->
 cat_cleaning_service(Pid, Cat = #cat{}, Money) ->
 	  my_server:call(Pid, {cleaning, Cat, Money}).
 
+%% Synchronous call untuk menambahkan kucing yang warnanya sama
+tambah_kucing_warna(Pid, Name, Color, Description) ->
+    my_server:call(Pid, {color_register, Name, Color, Description}).
+
+
+%% Synchronous call untuk menampilkan seluruh kucing yang ada di server
+show_cat(Pid) ->
+    my_server:call(Pid, show).
+
+%% Synchronous call untuk menampilkan seluruh warna yang ada di server
+lihat_warna_kucing(Pid) ->
+    my_server:call(Pid, colors).
+
 %%% Server functions
 init([]) -> []. %% no treatment of info here!
+
+remove_duplicates(List) ->
+    lists:foldl(fun(Color, Set) ->
+            Length = length(lists:filter(fun(Other) -> Other =:= Color end, Set)),
+            case Length of
+                0 -> Set ++ [Color];
+                _ -> Set
+            end
+        end,
+    [hd(List)], [hd(List) | tl(List)]).
 
 handle_call({order, Name, Color, Description}, From, Cats) ->
 	Hasil = search_cat_h([{with,name,Name},{with,color,Color},{with,description,Description}], Cats, []),
@@ -272,6 +300,35 @@ handle_call(show_feed_queue, From, Queue) ->
 handle_call({cat_not_hungry, Cat = #cat{}}, From, Queue) ->
     my_server:reply(From, {error, cat_not_hungry, {Cat#cat.name, Cat#cat.color, Cat#cat.description, Cat#cat.hungry}}),
     Queue;
+handle_call(show, From, Cats) ->
+    my_server:reply(From, {ok, [{Cat#cat.name, Cat#cat.color} || Cat <- Cats]}),
+    Cats;
+
+handle_call(colors, From, Cats) ->
+    if Cats =:= [] ->
+        my_server:reply(From, {error, "No cats found"}),
+        Cats;
+       Cats =/= [] ->
+        Colors = lists:map(fun(Cat) -> Cat#cat.color end, Cats),
+        my_server:reply(From, {ok, remove_duplicates(Colors)}),
+        Cats
+    end;
+
+handle_call({color_register, Name, Color, Description}, From, Cats) ->
+    if  Cats =:= [] ->
+            my_server:reply(From, {ok, "added cat"}),
+            Cats ++ [make_cat(Name, Color, Description)];
+        Cats =/= [] ->
+            AllColor = remove_duplicates([Cat#cat.color || Cat <- Cats]),
+            case lists:member(Color, AllColor) of
+                true ->
+                    my_server:reply(From, {ok, "added cat with the same color"}),
+                    Cats ++ [make_cat(Name, Color, Description)];
+                false ->
+                    my_server:reply(From, {error, "Please add cat with available colors:", AllColor}),
+                    Cats
+            end
+    end;
 
 handle_call(feed_queue, From, []) ->
     my_server:reply(From, {error, empty_feed_queue, all_cat_is_happy}),

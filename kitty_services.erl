@@ -7,6 +7,9 @@
          show_count_all_cat_with_sum_price/1, add_cat_with_price/5,
          start_feed_server/0, show_feed_queue/1, register_cat_to_feed_queue/2, make_cat_hungry/1, feed_the_queue/1
         ]).
+-export([add_cat_with_price_and_age/6,
+         show_statistic_of_all_cat_age/1,
+         show_statistic_of_all_cat_price/1]).
 -export([init/1, handle_call/3, handle_cast/2, tukar_kucing/4]).
 -export([cari_kucing/2, search_cat_h/3]).
 -export([show_cleaning_service_price/1, cat_cleaning_service/3]).
@@ -18,6 +21,7 @@
 -record(cat, {name, color=black, description, hungry=false, job=unemployed}).
 -record(deceased_cat, {name, date, cause}).
 -record(cat_with_price, {name, color=black, description, price=0}).
+-record(cat_with_price_and_age, {name, color=black, description, price=0, age=0}).
 
 %%% Client API
 start_link() -> my_server:start_link(?MODULE, []).
@@ -44,6 +48,16 @@ show_feed_queue(Pid) -> my_server:call(Pid, show_feed_queue).
 make_cat_hungry(Cat = #cat{}) -> #cat{name=Cat#cat.name, color=Cat#cat.color, description=Cat#cat.description, hungry=true}.
 
 feed_the_queue(Pid) -> my_server:call(Pid, feed_queue).
+
+
+add_cat_with_price_and_age(Pid, Name, Color, Description, Price, Age) ->
+    my_server:call(Pid, {add_with_price_and_age, Name, Color, Description, Price, Age}).
+
+show_statistic_of_all_cat_price(Pid) ->
+    my_server:call(Pid, {show_statistic_of_all_cat_price}).
+
+show_statistic_of_all_cat_age(Pid) ->
+    my_server:call(Pid, {show_statistic_of_all_cat_age}).
 
 
 %% This call is asynchronous
@@ -309,6 +323,27 @@ handle_call(show_feed_queue, From, Queue) ->
 handle_call({cat_not_hungry, Cat = #cat{}}, From, Queue) ->
     my_server:reply(From, {error, cat_not_hungry, {Cat#cat.name, Cat#cat.color, Cat#cat.description, Cat#cat.hungry}}),
     Queue;
+
+handle_call({add_with_price_and_age, Name, Color, Description, Price, Age}, From, Cats) ->
+    my_server:reply(From, {ok, cat_with_price_and_age}),
+    Cats ++ [make_cat_with_price_and_age(Name, Color, Description, Price, Age)];
+
+handle_call({show_statistic_of_all_cat_age}, From, Cats) ->
+    Stat = dict:new(),
+    StatWFreq = dict:store(frequency, count_age_freq(Cats), Stat),
+    StatWMean = dict:store(mean, count_mean(dict:fetch(frequency, StatWFreq), 0, 0), StatWFreq),
+    StatWMode = dict:store(mode, get_mode(dict:fetch(frequency, StatWFreq)), StatWMean),
+    my_server:reply(From, {ok, dict:to_list(StatWMode)}),
+    Cats;
+
+handle_call({show_statistic_of_all_cat_price}, From, Cats) ->
+    Stat = dict:new(),
+    StatWFreq = dict:store(frequency, count_price_freq(Cats), Stat),
+    StatWMean = dict:store(mean, count_mean(dict:fetch(frequency, StatWFreq), 0, 0), StatWFreq),
+    StatWMode = dict:store(mode, get_mode(dict:fetch(frequency, StatWFreq)), StatWMean),
+    my_server:reply(From, {ok, dict:to_list(StatWMode)}),
+    Cats;
+
 handle_call(show, From, Cats) ->
     my_server:reply(From, {ok, [{Cat#cat.name, Cat#cat.color} || Cat <- Cats]}),
     Cats;
@@ -366,6 +401,24 @@ make_cat_with_price(Name, Col, Desc, Price) ->
 
 make_cat_with_job(Name, Col, Desc, Job) ->
     #cat{name=Name, color=Col, description=Desc, job=Job}.
+make_cat_with_price_and_age(Name, Color, Description, Price, Age) ->
+    #cat_with_price_and_age{name=Name, color=Color, description=Description, price=Price, age=Age}.
+
+%%% Util functions
+count_age_freq(Cats) ->
+    lists:foldl(fun (C, D) -> orddict:update_counter(C#cat_with_price_and_age.age, 1, D) end, orddict:new(), Cats).
+
+count_price_freq(Cats) ->
+    lists:foldl(fun (C, D) -> orddict:update_counter(C#cat_with_price_and_age.price, 1, D) end, orddict:new(), Cats).
+
+get_mode([]) -> none;
+get_mode(L) -> get_mode(L, 0, 0).
+get_mode([], Mode, _) -> Mode;
+get_mode([{N, F}|T], _, MaxFreq) when F > MaxFreq -> get_mode(T, N, F);
+get_mode([{_, F}|T], Mode, MaxFreq) when F =< MaxFreq -> get_mode(T, Mode, MaxFreq).
+
+count_mean([], C, Sum) -> Sum/C;
+count_mean([{N, F}|T], C, Sum) -> count_mean(T, C + F, Sum + (N * F)).
 
 terminate(Cats) ->
     [io:format("~p was set free.~n",[C#cat.name]) || C <- Cats],

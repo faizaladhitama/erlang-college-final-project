@@ -7,9 +7,9 @@
          show_count_all_cat_with_sum_price/1, add_cat_with_price/5,
          start_feed_server/0, show_feed_queue/1, register_cat_to_feed_queue/2, make_cat_hungry/1, feed_the_queue/1
         ]).
-
 -export([init/1, handle_call/3, handle_cast/2, tukar_kucing/4]).
 -export([cari_kucing/2, search_cat_h/3]).
+-export([show_cleaning_service_price/1, cat_cleaning_service/3]).
 
 -record(cat, {name, color=black, description, hungry=false, job=unemployed}).
 -record(deceased_cat, {name, date, cause}).
@@ -100,6 +100,12 @@ browse_cat_with_job(Pid) ->
 %% Synchronous call untuk fungsi add_cat
 add_cat(Pid, Name, Color, Description) ->
     my_server:call(Pid, {add_cat, Name, Color, Description}).
+
+show_cleaning_service_price(Pid) ->
+	  my_server:call(Pid, show_cleaning_price).
+
+cat_cleaning_service(Pid, Cat = #cat{}, Money) ->
+	  my_server:call(Pid, {cleaning, Cat, Money}).
 
 %%% Server functions
 init([]) -> []. %% no treatment of info here!
@@ -234,6 +240,26 @@ handle_call(browse, From, Cats) ->
 handle_call({add_cat, Name, Color, Description}, From, Cats) ->
     my_server:reply(From, {ok, add_cat}),
     Cats ++ [make_cat(Name, Color, Description)];
+
+handle_call({cleaning, Cat = #cat{}, Money}, From, Cats) ->
+  	Cost = (length(Cats) * 5000) + 20000,
+  	if
+  		Cost > Money ->
+  			my_server:reply(From, {error, "Uang anda tidak cukup untuk pelayanan pembersihan kucing."}),
+  			Cats;
+  		true ->
+  			Change = Money - Cost,
+  			Name = Cat#cat.name,
+  			Message = lists:concat([Name, " bersih kembali, kembalian anda ", Change]),
+  			my_server:reply(From, {ok, Message}),
+  			Cats
+  	end;
+
+handle_call(show_cleaning_price, From, Cats) ->
+	  Cost = (length(Cats) * 5000) + 20000,
+	  Message = lists:concat(["Harga jasa pembersihan kucing saat ini adalah ", Cost]),
+	  my_server:reply(From, {Message}),
+    Cats;
 
 handle_call({add_feed_queue, Cat = #cat{}}, From, Queue) ->
     my_server:reply(From, {ok, add_feed_queue, {Cat#cat.name, Cat#cat.color, Cat#cat.description, Cat#cat.hungry}, queue_length, length(Queue)}),

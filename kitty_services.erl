@@ -4,11 +4,14 @@
 -export([start_link/0, order_cat/4, return_cat/2, close_shop/1,
          start_deceased_cat_server/0, show_deceased_cat_list/1, register_deceased_cat/5,
          assign_work/3, retire/2, add_cat/4, browse_cat_with_job/1,
-         show_count_all_cat_with_sum_price/1, add_cat_with_price/5]).
+         show_count_all_cat_with_sum_price/1, add_cat_with_price/5,
+         start_feed_server/0, show_feed_queue/1, register_cat_to_feed_queue/2, make_cat_hungry/1, feed_the_queue/1
+        ]).
+
 -export([init/1, handle_call/3, handle_cast/2, tukar_kucing/4]).
 -export([cari_kucing/2, search_cat_h/3]).
 
--record(cat, {name, color=black, description, job=unemployed}).
+-record(cat, {name, color=black, description, hungry=false, job=unemployed}).
 -record(deceased_cat, {name, date, cause}).
 -record(cat_with_price, {name, color=black, description, price=0}).
 
@@ -17,6 +20,8 @@ start_link() -> my_server:start_link(?MODULE, []).
 
 start_deceased_cat_server() -> my_server:start_link(?MODULE, []).
 
+start_feed_server() -> my_server:start_link(?MODULE, []).
+
 %% Synchronous call
 order_cat(Pid, Name, Color, Description) ->
     my_server:call(Pid, {order, Name, Color, Description}).
@@ -24,11 +29,16 @@ order_cat(Pid, Name, Color, Description) ->
 add_cat_with_price(Pid, Name, Color, Description, Price) ->
     my_server:call(Pid, {add_with_price, Name, Color, Description, Price}).
 
-show_deceased_cat_list(Pid) ->
-    my_server:call(Pid, show_deceased).
-
 show_count_all_cat_with_sum_price(Pid) ->
     my_server:call(Pid, show_count_all_cat_with_sum_price).
+
+show_deceased_cat_list(Pid) -> my_server:call(Pid, show_deceased).
+
+show_feed_queue(Pid) -> my_server:call(Pid, show_feed_queue).
+
+make_cat_hungry(Cat = #cat{}) -> #cat{name=Cat#cat.name, color=Cat#cat.color, description=Cat#cat.description, hungry=true}.
+
+feed_the_queue(Pid) -> my_server:call(Pid, feed_queue).
 
 %% This call is asynchronous
 return_cat(Pid, Cat = #cat{}) ->
@@ -41,6 +51,15 @@ register_deceased_cat(Pid1, Pid2, Name, Date = {DD, MM, YY}, Cause) ->
             my_server:call(Pid2, {decease, Name, Date, Cause});
         false ->
             my_server:call(Pid1, invalid_date)
+    end.
+
+register_cat_to_feed_queue(Pid, Cat = #cat{}) ->
+    case Cat#cat.hungry of
+        true ->
+            my_server:cast(Pid, {add_feed_queue, Cat}),
+            my_server:call(Pid, {add_feed_queue, Cat});
+        false ->
+            my_server:call(Pid, {cat_not_hungry, Cat})
     end.
 
 %% Synchronous call
@@ -213,16 +232,35 @@ handle_call(browse, From, Cats) ->
     Cats;
 
 handle_call({add_cat, Name, Color, Description}, From, Cats) ->
-
     my_server:reply(From, {ok, add_cat}),
-    Cats ++ [make_cat(Name, Color, Description)].
+    Cats ++ [make_cat(Name, Color, Description)];
 
+handle_call({add_feed_queue, Cat = #cat{}}, From, Queue) ->
+    my_server:reply(From, {ok, add_feed_queue, {Cat#cat.name, Cat#cat.color, Cat#cat.description, Cat#cat.hungry}, queue_length, length(Queue)}),
+    Queue;
 
-handle_cast({return, Cat = #cat{}}, Cats) ->
-    [Cat|Cats];
+handle_call(show_feed_queue, From, Queue) ->
+    my_server:reply(From, {[{Cat#cat.name, Cat#cat.color, Cat#cat.description, Cat#cat.hungry} || Cat <- Queue]}),
+    Queue;
+
+handle_call({cat_not_hungry, Cat = #cat{}}, From, Queue) ->
+    my_server:reply(From, {error, cat_not_hungry, {Cat#cat.name, Cat#cat.color, Cat#cat.description, Cat#cat.hungry}}),
+    Queue;
+
+handle_call(feed_queue, From, []) ->
+    my_server:reply(From, {error, empty_feed_queue, all_cat_is_happy}),
+    [];
+
+handle_call(feed_queue, From, [Cat|Queue]) ->
+    my_server:reply(From, {ok, finish_eat, {Cat#cat.name, Cat#cat.color, Cat#cat.description, Cat#cat.hungry}, happy_cat}),
+    Queue.
+
+handle_cast({return, Cat = #cat{}}, Cats) -> [Cat|Cats];
 
 handle_cast({decease, Name}, Cats) ->
-    lists:filter(fun(Cat) -> Cat#cat.name =/= Name end, Cats).
+    lists:filter(fun(Cat) -> Cat#cat.name =/= Name end, Cats);
+
+handle_cast({add_feed_queue, Cat = #cat{}}, Queue) -> Queue ++ [Cat].
 
 %%% Private functions
 make_cat(Name, Col, Desc) ->

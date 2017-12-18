@@ -85,11 +85,15 @@ handle_call({order, Name, Color, Description}, From, Cats) ->
     % end;
 	
 handle_call({add_with_price, Name, Color, Description, Price}, From, Cats) ->
-    
-    my_server:reply(From, {ok, cat_with_price}),
-    Cats ++ [make_cat_with_price(Name, Color, Description, Price)];
-    
-   
+    if Price >= 0 ->
+    	my_server:reply(From, {ok, "success add cat"}),
+    	Cats ++ [make_cat_with_price(Name, Color, Description, Price)];
+	
+	Price < 0 ->
+    	my_server:reply(From, {error, "can't negative price"}),
+	Cats
+   end;
+
 %%%Menampilkan jumlah uang yang harus dibayar untuk membeli semua kucing, beserta jumlah kucingnya
 handle_call(show_count_all_cat_with_sum_price, From, Cats) ->
     Total = lists:foldl(fun(_, Sum) -> Sum + 1 end, 0, Cats),

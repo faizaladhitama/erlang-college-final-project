@@ -75,7 +75,7 @@ change_working_hour(Pid, Start, End) when is_integer(Start), is_integer(End)->
 	     End > Start     ->
             my_server:change_working_hour(Pid, Start, End)
     end.
-    
+
 %% Synchronous call
 close_shop(Pid) ->
     my_server:call(Pid, terminate).

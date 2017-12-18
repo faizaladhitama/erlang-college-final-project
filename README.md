@@ -5,7 +5,7 @@ Kuliah Pemrograman Fungsional 2017
 
 Repository ini berisi _code base_ bahan untuk ujian pemrograman kuliah Pemrograman Fungsional. Hanya ada dua berkas utama pada awalnya yaitu:
 * my_server.erl
-* kitten_service2017.erl
+* kitten_services.erl
 
 Silahkan tambahkan fungsi pada berkas tersebut atau kembangkan berkas lain namun tetap menggunakan kedua berkas tersebut.
 
@@ -77,4 +77,4 @@ dan lain-lain, silahkan kembangkan kreativitas dan inovasi!
 Selamat berkreasi!
 
 Notes: The term "Pull request" is used in GitHub. GitLab uses "Merge request".
-Thank you Cindy for the correction. 
+Thank you Cindy for the correction.

@@ -264,7 +264,7 @@ handle_call({assign,Result,Search,Updated},From,Obj)->
        true ->
         Update_Result = update_record(Obj,Search,Updated,[]),
         if [Obj] == [Update_Result] ->        
-            my_server:reply(From, {error,"Already at maximum limit. Please choose another clinic"});  
+            my_server:reply(From, {error,"Already at maximum limit / Duplicate"});  
            true->
             my_server:reply(From, {ok,"Both exist"})
         end, Update_Result
@@ -500,8 +500,10 @@ print_list(List) -> [io:format("~p ~n",[Item]) || Item <- List], List.
 update_record([],_,_,Result)->Result;
 update_record(List,Searched,Updated,Result)->
     Head = hd(List),
+    {_,DocName,_} = Updated,
+    CheckDocName = lists:filter(fun({doctor,Name,_})->Name =:= DocName end, Head#clinic.doctor_list),
     DoctorNum = lists:foldl(fun(_,B)->B+1 end,0,Head#clinic.doctor_list),    
-    if Head#clinic.name =:= Searched andalso DoctorNum =/= Head#clinic.max_doctor->                                
+    if Head#clinic.name =:= Searched andalso DoctorNum =/= Head#clinic.max_doctor andalso [Updated] =/= CheckDocName->                                
         UpdatedDoctorList = Head#clinic.doctor_list++[Updated],
         NewHead = Head#clinic{doctor_list = UpdatedDoctorList},
         update_record(tl(List),Searched,Updated,Result++[NewHead]);

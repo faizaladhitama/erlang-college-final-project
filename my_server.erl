@@ -39,7 +39,6 @@ change_working_hour(Pid, Start, End) ->
 init(Module, InitialState) ->
     loop(Module, Module:init(InitialState), make_hour()).
 
-
 loop(Module, State, Work_Hour) ->
     receive
         {async, Msg} ->
@@ -78,7 +77,7 @@ not_work_hour(Work_Hour) ->
 	ok.
 
 make_hour() ->
-	make_hour(9, 17).
+	make_hour(9, 24).
 
 make_hour(Start, End) ->
 	if End < Start 	->

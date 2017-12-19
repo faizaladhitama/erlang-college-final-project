@@ -13,8 +13,7 @@
 -export([edit_description_cat/3, edit_description_cat/4, is_edit_by_color/3]).
 -export([init/1, handle_call/3, handle_cast/2, tukar_kucing/4]).
 -export([start_doctor_server/0,start_clinic_server/0,make_doctor/2,make_clinic/2,new_clinic/3,
-        new_doctor/3,register_clinic/2,register_doctor/2,filter_doctor/2,filter_clinic/2,
-        assign_doctor/4,show_clinic/1]).
+        new_doctor/3,register_clinic/2,register_doctor/2,assign_doctor/4,show_list/1]).
 -export([cari_kucing/2, search_cat_h/3]).
 -export([show_cleaning_service_price/1, cat_cleaning_service/3]).
 -export([change_working_hour/3]).
@@ -41,22 +40,19 @@ order_cat(Pid, Name, Color, Description) ->
 %%Make new clinic
 new_clinic(Pid, Name, Max_Doctor)->
     my_server:call(Pid,{new_clinic,Name,Max_Doctor}).
-
 %%Make new doctor
 new_doctor(Pid, Name, Specialization)->
     my_server:call(Pid,{new_doctor,Name,Specialization}).   
 
 %%Print list of clinic
-show_clinic(Pid)->
+show_list(Pid)->
     my_server:call(Pid,{print}).  
 
-%PID 1 = SERVER DOKTER
-%PID 2 = SERVER KLINIK
+%Assign doctor ke klinik
 assign_doctor(Pid1,Pid2,SearchedDoctor,SearchedClinic) ->
     ResultDoctor = filter_doctor(Pid1,SearchedDoctor),
     ResultClinic = filter_clinic(Pid2,SearchedClinic),
     if ResultDoctor =/= [] andalso ResultClinic =/= [] ->    
-            {_,DoctorName,_} = hd(ResultDoctor),
             {_,ClinicName,_,_} = hd(ResultClinic),
             my_server:call(Pid2,{assign,true,ClinicName,hd(ResultDoctor)});
        true ->
@@ -92,18 +88,17 @@ edit_description_cat(Pid, Name, NewDescription) ->
 edit_description_cat(Pid, Name, Color, NewDescription) ->
     my_server:call(Pid, {edit_description, Name, Color, NewDescription}).
 
-%% This call is asynchronous
+%% Register doctor to server
 register_doctor(Pid, Doctor = #doctor{}) ->
     my_server:cast(Pid, {register_doctor, Doctor}).
-
+%% Register clinic to server
 register_clinic(Pid, Clinic = #clinic{}) ->
     my_server:cast(Pid, {register_clinic, Clinic}).
 
-filter_doctor(Pid,Name)->
-    my_server:call(Pid,{filter_doctor,Name}). 
-
-filter_clinic(Pid,Name)->
-    my_server:call(Pid,{filter_clinic,Name}).
+% Filter doctor
+filter_doctor(Pid,Name)-> my_server:call(Pid,{filter_doctor,Name}). 
+% Filter clinic
+filter_clinic(Pid,Name)-> my_server:call(Pid,{filter_clinic,Name}).
 
 return_cat(Pid, Cat = #cat{}) ->
     my_server:cast(Pid, {return, Cat}).
@@ -171,7 +166,6 @@ assign_work(Pid, Name, Job) ->
 retire(Pid, Name) ->
     my_server:call(Pid, {retire, Name}).
 
-
 %% Synchronous call untuk fungsi browse_cat_with_job
 browse_cat_with_job(Pid) ->
     my_server:call(Pid, browse).
@@ -189,7 +183,6 @@ cat_cleaning_service(Pid, Cat = #cat{}, Money) ->
 %% Synchronous call untuk menambahkan kucing yang warnanya sama
 tambah_kucing_warna(Pid, Name, Color, Description) ->
     my_server:call(Pid, {color_register, Name, Color, Description}).
-
 
 %% Synchronous call untuk menampilkan seluruh kucing yang ada di server
 show_cat(Pid) ->
@@ -251,43 +244,34 @@ handle_call(show_count_all_cat_with_sum_price, From, Cats) ->
 %%Melakukan filtering doktor berdasarkan nama
 handle_call({filter_doctor,Name}, From, Doctors) ->
     Filter = lists:filter(fun(Doctor)-> Doctor#doctor.name == Name end, Doctors),
-    my_server:reply(From,Filter),
-    Doctors;
-
+    my_server:reply(From,Filter), Doctors;
 %%Melakukan filtering klinik berdasarkan nama
 handle_call({filter_clinic,Name}, From, Clinics) ->
     Filter = lists:filter(fun(Clinic)-> Clinic#clinic.name == Name end, Clinics),
-    my_server:reply(From,Filter),
-    Clinics;
+    my_server:reply(From,Filter), Clinics;
 
 %%Menambahkan klinik ke server
 handle_call({new_clinic,Name,Max_Doctor}, From, Clinics) ->
-    my_server:reply(From, make_clinic(Name, Max_Doctor)),
-    Clinics;    
-
+    my_server:reply(From, make_clinic(Name, Max_Doctor)), Clinics;    
 %%Menambahkan dokter ke server
 handle_call({new_doctor,Name,Specialization}, From, Doctors) ->
-    my_server:reply(From, make_doctor(Name, Specialization)),
-    Doctors;
+    my_server:reply(From, make_doctor(Name, Specialization)), Doctors;
 
 %%Server function untuk assign dokter ke klinik
 handle_call({assign,Result,Search,Updated},From,Obj)->
     if Result =:= false ->
-        my_server:reply(From, {error,"Neither Doctor nor Clinic not exist"}),
-        Obj;
+        my_server:reply(From, {error,"Either Doctor or Clinic not exist"}), Obj;
        true ->
-        Update_Result = update_record(Obj,Search,Updated),
+        Update_Result = update_record(Obj,Search,Updated,[]),
         if [Obj] == [Update_Result] ->        
             my_server:reply(From, {error,"Already at maximum limit. Please choose another clinic"});  
            true->
-            my_server:reply(From, {ok,"Both exists"})
-        end,    
-        Update_Result
+            my_server:reply(From, {ok,"Both exist"})
+        end, Update_Result
     end;
 
 handle_call({print}, From, Obj) ->
-    my_server:reply(From, ok),
-    print_list(Obj);
+    my_server:reply(From, ok), print_list(Obj);
 
 %%%% Server functions untuk layanan tukar kucing
 handle_call({tukar, Name, Color, Description}, From, Cats) ->
@@ -398,7 +382,6 @@ handle_call({edit_description, Name, Color, NewDescription}, From, Cats) ->
             Cats
     end;
 
-
 handle_call({cleaning, Cat = #cat{}, Money}, From, Cats) ->
   	Cost = (length(Cats) * 5000) + 20000,
   	if
@@ -491,11 +474,9 @@ handle_call(feed_queue, From, [Cat|Queue]) ->
 
 handle_cast({return, Cat = #cat{}}, Cats) -> [Cat|Cats];
 
-handle_cast({register_clinic, Clinic = #clinic{}}, Clinics) ->
-    [Clinic|Clinics];
+handle_cast({register_clinic, Clinic = #clinic{}}, Clinics) -> [Clinic|Clinics];
 
-handle_cast({register_doctor, Doctor = #doctor{}}, Doctors) ->
-    [Doctor|Doctors];
+handle_cast({register_doctor, Doctor = #doctor{}}, Doctors) -> [Doctor|Doctors];
 
 handle_cast({decease, Name}, Cats) ->
     lists:filter(fun(Cat) -> Cat#cat.name =/= Name end, Cats);
@@ -508,32 +489,22 @@ make_cat(Name, Col, Desc) ->
 make_deceased_cat(Name, Date, Cause) ->
     #deceased_cat{name=Name, date=Date, cause=Cause}.
 
-%%% Private functions for assign doctor
 make_clinic(Name, Max_Doctor) -> 
     #clinic{name=Name,max_doctor=Max_Doctor,doctor_list=[]}.
 
 make_doctor(Name, Specialization) ->
     #doctor{name=Name,specialization=Specialization}.
 
-print_list(List) ->
-    [io:format("~p ~n",[Item]) || Item <- List],
-    List.
+print_list(List) -> [io:format("~p ~n",[Item]) || Item <- List], List.
 
-update_record([],Searched,Updated) -> [];
-update_record(List,Searched,Updated) -> update_record(List,Searched,Updated,[]).
-update_record([],Searched,Updated,Result)->Result;
+update_record([],_,_,Result)->Result;
 update_record(List,Searched,Updated,Result)->
     Head = hd(List),
-    if Head#clinic.name =:= Searched ->
-        DoctorNum = lists:foldl(fun(A,B)->B+1 end,0,Head#clinic.doctor_list),                
-        if DoctorNum =:= Head#clinic.max_doctor ->
-            update_record(tl(List),Searched,Updated,Result++[Head]);
-           true ->
-            HeadList = Head#clinic.doctor_list,
-            NewHeadList = HeadList++[Updated],
-            NewHead = Head#clinic{doctor_list = NewHeadList},
-            update_record(tl(List),Searched,Updated,Result++[NewHead])
-        end;
+    DoctorNum = lists:foldl(fun(_,B)->B+1 end,0,Head#clinic.doctor_list),    
+    if Head#clinic.name =:= Searched andalso DoctorNum =/= Head#clinic.max_doctor->                                
+        UpdatedDoctorList = Head#clinic.doctor_list++[Updated],
+        NewHead = Head#clinic{doctor_list = UpdatedDoctorList},
+        update_record(tl(List),Searched,Updated,Result++[NewHead]);
        true->
         update_record(tl(List),Searched,Updated,Result++[Head])
     end.

@@ -77,7 +77,7 @@ not_work_hour(Work_Hour) ->
 	ok.
 
 make_hour() ->
-	make_hour(0, 20).
+	make_hour(9, 17).
 
 make_hour(Start, End) ->
 	if End < Start 	->

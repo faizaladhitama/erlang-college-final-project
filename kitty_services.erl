@@ -270,7 +270,8 @@ handle_call({assign,Result,Search,Updated},From,Obj)->
     end;
 
 %%Server function untuk mengeprint record dalam server
-handle_call({print}, From, Obj) -> my_server:reply(From, ok), print_list(Obj);
+handle_call({print}, From, Obj) ->  
+    my_server:reply(From, ok), print_list(Obj);
 
 %%%% Server functions untuk layanan tukar kucing
 handle_call({tukar, Name, Color, Description}, From, Cats) ->
